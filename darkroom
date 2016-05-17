@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+require 'i3ipc'
+
+def is_inverted?
+  map_data = `xcalib -a -p`
+  return !map_data.match(/\A0 0 0/)
+end
+
+def get_current_brightness
+  current_brightness_data = `scrot /tmp/root.png ; convert /tmp/root.png -colorspace gray -format "%[fx:100*mean]" info:`
+  return current_brightness_data.to_f
+end
+
+def invert_colormap
+  `xcalib -a -i`
+end
+
+i3 = I3Ipc::Connection.new
+block = Proc.new do |reply|
+  puts Time.now
+  puts reply.change
+  $check_it = true
+end
+
+i3.subscribe('window', block)
+while true do
+  sleep 0.010
+  if $check_it
+    inverted = is_inverted?
+    brightness = get_current_brightness
+    if (brightness < 10 and inverted) or (brightness > 90 and not inverted)
+      invert_colormap
+    end
+  end
+end
+

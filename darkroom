@@ -2,18 +2,29 @@
 
 require 'i3ipc'
 
+LIMIT=25
+$inverted = false
+
 def is_inverted?
+  return $inverted
   map_data = `xcalib -a -p`
   return !map_data.match(/\A0 0 0/)
 end
 
+def get_blocks
+  return [[0,0,959,539],[2860,0,3839,539],[0,1620,959,2159],[2860,1620,3839,2159]]
+end
+
 def get_current_brightness
+  blocks = get_blocks
   current_brightness_data = `scrot /tmp/root.png ; convert /tmp/root.png -colorspace gray -format "%[fx:100*mean]" info:`
   return current_brightness_data.to_f
 end
 
 def invert_colormap
-  `xcalib -a -i`
+#  `xcalib -a -i`
+  `invert_colors_osx`
+  $inverted = ! $inverted
 end
 
 i3 = I3Ipc::Connection.new
@@ -21,6 +32,7 @@ block = Proc.new do |reply|
   puts Time.now
   puts reply.change
   $check_it = true
+  sleep 0.005
 end
 
 i3.subscribe('window', block)
@@ -29,7 +41,7 @@ while true do
   if $check_it
     inverted = is_inverted?
     brightness = get_current_brightness
-    if (brightness < 10 and inverted) or (brightness > 90 and not inverted)
+    if (brightness < 15 and inverted) or (brightness > 85 and not inverted)
       invert_colormap
     end
   end

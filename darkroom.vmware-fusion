@@ -22,8 +22,8 @@ def get_current_brightness
 end
 
 def invert_colormap
-  `xcalib -a -i`
-#  `xrandr-invert-colors`
+#  `xcalib -a -i`
+  `invert_colors_osx`
   $inverted = ! $inverted
 end
 

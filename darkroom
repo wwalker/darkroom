@@ -39,6 +39,8 @@ i3.subscribe('window', block)
 while true do
   sleep 0.010
   if $check_it
+    $check_it = false
+    puts Time.now.to_s + 'check'
     inverted = is_inverted?
     brightness = get_current_brightness
     if (brightness < 15 and inverted) or (brightness > 85 and not inverted)

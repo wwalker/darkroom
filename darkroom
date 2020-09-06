@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+Thread.abort_on_exception = true
+
 require 'i3ipc'
 
 LIMIT=25

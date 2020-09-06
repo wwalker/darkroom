@@ -5,6 +5,23 @@ require 'i3ipc'
 LIMIT=25
 $inverted = false
 
+class Status
+  def initialize(state = false)
+    @status = state
+    @mutex = Mutex.new
+  end
+
+  def status?
+    @mutex.synchronize { @status }
+  end
+
+  def status=(state)
+      @mutex.synchronize do
+        @status = !@status
+      end
+  end
+end
+
 def is_inverted?
   return $inverted
   map_data = `xcalib -a -p`
@@ -23,28 +40,30 @@ end
 
 def invert_colormap
   `xcalib -a -i`
-#  `xrandr-invert-colors`
+  #  `xrandr-invert-colors`
   $inverted = ! $inverted
 end
+
+needs_checked = Status.new(false)
 
 i3 = I3Ipc::Connection.new
 block = Proc.new do |reply|
   puts Time.now
   puts reply.change
-  $check_it = true
-  sleep 0.005
+  needs_checked.status = true
+  sleep 0.050
 end
 
 i3.subscribe('window', block)
 while true do
-  sleep 0.010
-  if $check_it
-    # $check_it = false
+  sleep 0.050
+  if needs_checked.status?
+    needs_checked.status = false
+    sleep 0.050
     inverted = is_inverted?
     brightness = get_current_brightness
-    if (brightness < 15 and inverted) or (brightness > 85 and not inverted)
+    if (brightness < 20 and inverted) or (brightness > 80 and not inverted)
       invert_colormap
     end
   end
 end
-

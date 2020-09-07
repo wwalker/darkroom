@@ -1,71 +1,26 @@
-#!/usr/bin/env ruby
+#!/bin/bash
 
-Thread.abort_on_exception = true
+inverted=1
 
-require 'i3ipc'
+while true
+do
+  i3-msg -t subscribe '[  "workspace",  "output",  "mode",  "window",  "barconfig_update",  "binding" ]' > /dev/null
 
-LIMIT=25
-$inverted = false
+  echo "event"
+  sleep 0.1
+  brightness=$(scrot /tmp/root.png ; convert /tmp/root.png -colorspace gray -format "%[fx:100*mean]" info: | sed -e 's/\..*//')
+  #scrot /tmp/root.png
+  #ls -l --full-time /tmp/root.png
+  #convert /tmp/root.png -colorspace gray -format "%[fx:100*mean]\n" info:
+  echo "brightness: $brightness"
+  echo "inverted: $inverted"
 
-class Status
-  def initialize(state = false)
-    @status = state
-    @mutex = Mutex.new
-  end
-
-  def status?
-    @mutex.synchronize { @status }
-  end
-
-  def status=(state)
-      @mutex.synchronize do
-        @status = !@status
-      end
-  end
-end
-
-def is_inverted?
-  return $inverted
-  map_data = `xcalib -a -p`
-  return !map_data.match(/\A0 0 0/)
-end
-
-def get_blocks
-  return [[0,0,959,539],[2860,0,3839,539],[0,1620,959,2159],[2860,1620,3839,2159]]
-end
-
-def get_current_brightness
-  blocks = get_blocks
-  current_brightness_data = `scrot /tmp/root.png ; convert /tmp/root.png -colorspace gray -format "%[fx:100*mean]" info:`
-  return current_brightness_data.to_f
-end
-
-def invert_colormap
-  `xcalib -a -i`
-  #  `xrandr-invert-colors`
-  $inverted = ! $inverted
-end
-
-needs_checked = Status.new(false)
-
-i3 = I3Ipc::Connection.new
-block = Proc.new do |reply|
-  puts Time.now
-  puts reply.change
-  needs_checked.status = true
-  sleep 0.050
-end
-
-i3.subscribe('window', block)
-while true do
-  sleep 0.050
-  if needs_checked.status?
-    needs_checked.status = false
-    sleep 0.050
-    inverted = is_inverted?
-    brightness = get_current_brightness
-    if (brightness < 20 and inverted) or (brightness > 80 and not inverted)
-      invert_colormap
-    end
-  end
-end
+  if ( ( [[ 0 -eq $(( inverted % 2)) ]] && [[ $brightness -le 20 ]] ) ||
+	( [[ 1 -eq $(( inverted % 2)) ]] && [[ $brightness -ge 80 ]] ) )
+	then
+	  echo "Inverting"
+	  xcalib -a -i
+	  echo "Inverted"
+	  inverted=$(( inverted + 1 ))
+  fi
+done
